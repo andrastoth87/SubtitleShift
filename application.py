@@ -12,7 +12,7 @@ from generic_parser import GenericParser
 from processors.processor_sub import ProcessorSUB
 from processors.processor_general import ProcessorGENERAL
 
-
+# States of this program
 class State(Enum):
     INITIALIZED = 0
     LOADED = 1
@@ -21,19 +21,16 @@ class Application(tk.Tk, WidgetHelper):
     def __init__(self):
         super().__init__()
 
-        self.title('SubSyncer')
+        self.title('SubShifter')
         self.resizable(False, False)
         self.withdraw()
 
         self.state = None
 
-        self.label_file_path = None
-        # self.button_sync = None
-        # self.button_open = None
-        # self.entry_offset_amount = None
+        # The value of the radio button that will determine if we shift the subtitle in a positive or negative direction. 0 = positive, 1 = negative.
         self.radiobutton_val = tk.IntVar()
 
-        self.file_path = ''
+        self.open_file_path = ''
 
         # Default constant values
         self.FONT_INFORMATION_ITALIC = ('TkDefaultFont', 9, 'italic')
@@ -106,7 +103,7 @@ class Application(tk.Tk, WidgetHelper):
 
                 tk.Label(entry_container, text="1 second = 1000 milliseconds", font=self.FONT_INFORMATION_ITALIC).grid(row=1, column=0, columnspan=2, sticky='w')
 
-            self.button_sync = tk.Button(main_container, text="Synchronise Subtitle", command=lambda: self._process_file(self.file_path), borderwidth=1, relief=tk.SOLID)
+            self.button_sync = tk.Button(main_container, text="Synchronise Subtitle", command=lambda: self._process_file(self.open_file_path), borderwidth=1, relief=tk.SOLID)
             self.button_sync.grid(row=3, column=0, columnspan=2, ipadx=10, ipady=5, pady=(10, 0), sticky='ew')
 
     def _validate(self, value_if_allowed):
@@ -135,10 +132,13 @@ class Application(tk.Tk, WidgetHelper):
 
             return
 
-        self.file_path = open_path
+        self.open_file_path = open_path
         self._change_state(State.LOADED)
 
     def _read_file(self, open_path):
+        """
+        Read the file from the path and return the content as string.
+        """
         if not open_path:
             return
 
@@ -146,6 +146,9 @@ class Application(tk.Tk, WidgetHelper):
             return f.read()
 
     def _save_file(self, save_path, text):
+        """
+        Write the supplied string to the disk.
+        """
         if not save_path:
             return
 
@@ -172,7 +175,7 @@ class Application(tk.Tk, WidgetHelper):
 
         subtitle_text = self._read_file(path)
 
-        processor = self.supported_extensions[self._get_extension_from_path(self.file_path)]
+        processor = self.supported_extensions[self._get_extension_from_path(self.open_file_path)]
         shifted_subtitle_text = processor.shift(subtitle_text, shift_amount)
 
         while True:
@@ -188,7 +191,7 @@ class Application(tk.Tk, WidgetHelper):
                 if answer == 'no':
                     continue
 
-                save_path = self.file_path
+                save_path = self.open_file_path
 
                 break
 
@@ -207,7 +210,7 @@ class Application(tk.Tk, WidgetHelper):
     def _get_save_path(self):
         filetypes = []
 
-        filename, file_extension = os.path.splitext(self.file_path)
+        filename, file_extension = os.path.splitext(self.open_file_path)
         filetypes.append((f'Subtitle Files *{file_extension}', f'*{file_extension}'))
         filetypes.append(('All Files *.*', '*.*'))
 
@@ -217,6 +220,9 @@ class Application(tk.Tk, WidgetHelper):
             return ''
 
     def _change_state(self, new_state):
+        """
+
+        """
         self.state = new_state
 
         if self.state == State.INITIALIZED:
@@ -225,19 +231,32 @@ class Application(tk.Tk, WidgetHelper):
             self._on_state_loaded()
 
     def _get_supported_extensions(self, leading_chars, separator):
+        """
+        Construct and return a string with the supported extensions.
+        To make the function more generic leading chars and separators can be added.
+        """
         extensions = [leading_chars + x for x in self.supported_extensions.keys()]
         return separator.join(extensions)
 
     def _get_extension_from_path(self, path):
+        """
+        Return the extension from the supplied path
+        """
         filename, file_extension = os.path.splitext(path)
         return file_extension[1:]
 
     def _on_state_initialized(self):
+        """
+        Change the variables associated with this state.
+        """
         self.button_sync.config(state='disabled', bg='grey85')
         self.button_open.config(bg=self.COLOR_YELLOW, activebackground=self.COLOR_LIGHT_YELLOW)
 
     def _on_state_loaded(self):
-        self._fit_text_to_label(self.label_file_path, self.file_path)
+        """
+        Change the variables associated with this state.
+        """
+        self._fit_text_to_label(self.label_file_path, self.open_file_path)
         self.button_sync.config(state='normal', bg=self.COLOR_GREEN, activebackground=self.COLOR_LIGHT_GREEN)
         self.button_open.config(bg=self.COLOR_GREEN, activebackground=self.COLOR_LIGHT_GREEN)
 
@@ -245,7 +264,7 @@ class Application(tk.Tk, WidgetHelper):
         """
         Fit the text to the available label size by removing the first char until the text width is smaller than the available label width.
         If the desired length is met than add ... to the beginning.
-        We do this because we are only interested in the filename that is open and do not necessarily wand to show tho whole path.
+        We do this because we are only interested in the filename that is open and do not necessarily wand to show the whole path.
         """
         font = tkFont.nametofont(label_widget.cget("font"))
 
