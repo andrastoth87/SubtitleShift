@@ -242,9 +242,11 @@ class Application(tk.Tk, WidgetHelper):
         self.button_open.config(bg=self.COLOR_GREEN, activebackground=self.COLOR_LIGHT_GREEN)
 
     def _fit_text_to_label(self, label_widget, text):
-        '''
-            Fit the text to the available label size by removing the last char until the text width is smaller than the available label width.
-        '''
+        """
+        Fit the text to the available label size by removing the first char until the text width is smaller than the available label width.
+        If the desired length is met than add ... to the beginning.
+        We do this because we are only interested in the filename that is open and do not necessarily wand to show tho whole path.
+        """
         font = tkFont.nametofont(label_widget.cget("font"))
 
         self.update()
