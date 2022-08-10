@@ -21,6 +21,7 @@ class Application(tk.Tk, WidgetHelper):
 
         self.title('SubShifter')
         self.resizable(False, False)
+        # Hide the GUI until it is created and centered.
         self.withdraw()
 
         self.state = None
@@ -30,7 +31,7 @@ class Application(tk.Tk, WidgetHelper):
 
         self.open_file_path = ''
 
-        # Default constant values
+        # Default constant values to use.
         self.FONT_INFORMATION_ITALIC = ('TkDefaultFont', 9, 'italic')
         self.COLOR_RED = '#ffaaaa'
         self.COLOR_LIGHT_YELLOW = '#fff6d5'
@@ -38,6 +39,7 @@ class Application(tk.Tk, WidgetHelper):
         self.COLOR_LIGHT_GREEN = '#e5ffd5'
         self.COLOR_GREEN = '#ccffaa'
 
+        # Add here the supported file extensions and the regex to use to extract the timestamps, frames etc...
         self.supported_extensions = {
             'sub': ProcessorSUB(r'{(\d+)}'),
             'srt': ProcessorGENERAL(r'(\d{1,2}):(\d{2}):(\d{2})[,.:](\d{1,3})'),
@@ -53,6 +55,7 @@ class Application(tk.Tk, WidgetHelper):
 
         self.center_widget()
 
+        # Show GUI
         self.deiconify()
 
         self._change_state(State.INITIALIZED)
@@ -105,6 +108,9 @@ class Application(tk.Tk, WidgetHelper):
             self.button_sync.grid(row=3, column=0, columnspan=2, ipadx=10, ipady=5, pady=(10, 0), sticky='ew')
 
     def _validate(self, value_if_allowed):
+        """
+        Validation for the offset amount entry to only allow positive numbers.
+        """
         pattern = re.compile(r'^[1-9]\d*$')
 
         if pattern.match(value_if_allowed) or value_if_allowed == '':
@@ -113,6 +119,9 @@ class Application(tk.Tk, WidgetHelper):
             return False
 
     def _get_open_path(self):
+        """
+        Get the path of the subtitle file.
+        """
         extensions = self._get_supported_extensions('*.', ' ')
 
         filetypes = (
@@ -120,8 +129,10 @@ class Application(tk.Tk, WidgetHelper):
             ('All files *.*', '*.*')
         )
 
+        # Use Tkinter's file dialogue to select a file
         open_path = fd.askopenfilename(title='Open Subtitle...', initialdir='/', filetypes=filetypes)
 
+        # If there was no file selected or if the file is not supported then return.
         if not open_path:
             return
 
@@ -130,6 +141,7 @@ class Application(tk.Tk, WidgetHelper):
 
             return
 
+        # The filepath is valid then change the state of the program.
         self.open_file_path = open_path
         self._change_state(State.LOADED)
 
@@ -166,13 +178,27 @@ class Application(tk.Tk, WidgetHelper):
             return 0
 
     def _process_file(self, path):
+        """
+        The main function of this application.
+        """
         shift_amount = self._get_offset_amount()
 
         if self.radiobutton_val.get() == 1:
             shift_amount *= -1
 
-        subtitle_text = self._read_file(path)
+        subtitle_text = ''
 
+        try:
+            subtitle_text = self._read_file(path)
+        except FileNotFoundError:
+            # Reset to initialized state and return
+            tkMessagebox.showerror('SubShifter', f'File not found:\n{path}')
+
+            self._reset()
+
+            return
+
+        # This is where the magic happens! The processor will get the timestamps from the sub file and shift them.
         processor = self.supported_extensions[self._get_extension_from_path(self.open_file_path)]
         shifted_subtitle_text = processor.shift(subtitle_text, shift_amount)
 
@@ -180,19 +206,22 @@ class Application(tk.Tk, WidgetHelper):
             user_choice = SavePopup().wait_value()
             save_path = ''
 
+            # If the cancel button was pressed, do nothing
             if user_choice == 'cancel':
                 return
 
+            # Ask the user for overwrite confirmation
             elif user_choice == 'overwrite':
                 answer = tkMessagebox.askquestion("Confirm Overwrite", "Are you sure you want to overwrite the file?", icon='warning')
 
                 if answer == 'no':
                     continue
 
-                save_path = self.open_file_path
+                save_path = path
 
                 break
 
+            # Prompt the user for the save location
             elif user_choice == 'save_as':
                 path = self._get_save_path()
 
@@ -217,23 +246,18 @@ class Application(tk.Tk, WidgetHelper):
         except AttributeError:
             return ''
 
-    def _change_state(self, new_state):
+    def _get_supported_extensions(self, leading_chars, separator, sort=True):
         """
-
-        """
-        self.state = new_state
-
-        if self.state == State.INITIALIZED:
-            self._on_state_initialized()
-        elif self.state == State.LOADED:
-            self._on_state_loaded()
-
-    def _get_supported_extensions(self, leading_chars, separator):
-        """
-        Construct and return a string with the supported extensions.
+        Construct, sort and return a string with the supported extensions.
         To make the function more generic leading chars and separators can be added.
         """
-        extensions = [leading_chars + x for x in self.supported_extensions.keys()]
+        keys = list(self.supported_extensions.keys())
+
+        if sort:
+            keys.sort()
+
+        extensions = [leading_chars + x for x in keys]
+
         return separator.join(extensions)
 
     def _get_extension_from_path(self, path):
@@ -242,6 +266,24 @@ class Application(tk.Tk, WidgetHelper):
         """
         filename, file_extension = os.path.splitext(path)
         return file_extension[1:]
+
+    def _reset(self):
+        """
+        Reset all the values to the initialized state
+        """
+        self.open_file_path = ''
+        self.radiobutton_val.set(0)
+        self.entry_offset_amount.delete(0, 'end')
+        self.label_file_path.config(text="No file chosen")
+        self._change_state(State.INITIALIZED)
+
+    def _change_state(self, new_state):
+        self.state = new_state
+
+        if self.state == State.INITIALIZED:
+            self._on_state_initialized()
+        elif self.state == State.LOADED:
+            self._on_state_loaded()
 
     def _on_state_initialized(self):
         """

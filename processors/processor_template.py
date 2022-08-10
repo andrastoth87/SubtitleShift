@@ -2,13 +2,11 @@ from tkinter import messagebox as tkMessagebox
 
 
 class ProcessorTemplate:
+    """
+    A small template to use for the subtitle processors.
+    """
     def __init__(self, regex):
         self._regex = regex
-
-        # self._initialize()
-
-    # def _initialize(self):
-    #     raise NotImplementedError
 
     def shift(self, text, amount):
         raise NotImplementedError
