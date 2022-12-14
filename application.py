@@ -10,10 +10,12 @@ from widget_helpers import WidgetHelper
 from processors.processor_sub import ProcessorSUB
 from processors.processor_general import ProcessorGENERAL
 
+
 # States of this program
 class State(Enum):
     INITIALIZED = 0
     LOADED = 1
+
 
 class Application(tk.Tk, WidgetHelper):
     def __init__(self):
@@ -155,7 +157,7 @@ class Application(tk.Tk, WidgetHelper):
         with open(open_path, 'r') as f:
             return f.read()
 
-    def _save_file(self, save_path, text):
+    def _save_file(self, save_path, text) -> None:
         """
         Write the supplied string to the disk.
         """
@@ -165,7 +167,7 @@ class Application(tk.Tk, WidgetHelper):
         with open(save_path, 'w') as f:
             f.write(text)
 
-    def _get_offset_amount(self):
+    def _get_offset_amount(self) -> int:
         value = self.entry_offset_amount.get()
         value.lstrip("0")
 
@@ -177,7 +179,7 @@ class Application(tk.Tk, WidgetHelper):
         except ValueError:
             return 0
 
-    def _process_file(self, path):
+    def _process_file(self, path) -> None:
         """
         The main function of this application.
         """

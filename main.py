@@ -1,5 +1,9 @@
 from application import Application
-# Press the green button in the gutter to run the script.
+
+
+def main() -> None:
+    Application()
+
 
 if __name__ == '__main__':
-    Application()
+    main()
