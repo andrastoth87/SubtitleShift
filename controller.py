@@ -1,4 +1,7 @@
 # States of this program
+import os
+
+
 class State:
     UNINITIALIZED = 'UNINITIALIZED'
     INITIALIZED = 'INITIALIZED'
@@ -18,7 +21,7 @@ class Controller:
 
         self.__view.start_main_loop()
 
-    def _change_state(self, new_state: str) -> None:
+    def change_state(self, new_state: str) -> None:
         """ Sets the new state of the application. """
         self.__state = new_state
 
@@ -31,7 +34,7 @@ class Controller:
         """ Construct, sort and return a string with the supported extensions.
         To make the function more generic leading chars and separators can be added. """
 
-        extensions = self.__model.get_supported_extensions_str()
+        extensions = self.__model.get_supported_extensions()
 
         if sort:
             extensions.sort()
@@ -43,7 +46,7 @@ class Controller:
     def get_supported_extensions_list(self, sort=True) -> list[str]:
         """ Returns a list of the supported extensions. """
 
-        extensions = self.__model.get_supported_extensions_str()
+        extensions = self.__model.get_supported_extensions()
 
         if sort:
             extensions.sort()
@@ -63,8 +66,12 @@ class Controller:
         if not path:
             return ''
 
-        with open(path, 'r') as f:
-            return f.read()
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except UnicodeDecodeError:
+            with open(path, 'r', encoding='latin-1') as f:
+                return f.read()
 
     def _reset(self):
         """
@@ -73,11 +80,10 @@ class Controller:
         self.__model.set_subtitle_path('')
         self.__view.reset_fields()
 
-        self._change_state(State.INITIALIZED)
+        self.change_state(State.INITIALIZED)
 
-    def _process_file(self, shift_amount: int) -> None:
+    def process_file(self, shift_amount: int) -> None:
         """ This is where the magic happens :) """
-
         subtitle_path = self.__model.get_subtitle_path()
 
         subtitle_text = ''
@@ -93,7 +99,13 @@ class Controller:
             return
 
         # This is where the magic happens! The processor will get the timestamps from the sub file and shift them.
-        processor = self.supported_extensions[self._get_extension_from_path(self.open_file_path)]
+        processor = self.__model.get_processor(self.get_extension_from_path(subtitle_path))
+
+        if processor is None:
+            self.__view.show_error_messagebox('Error', 'Could not get the processor.')
+
+            return
+
         shifted_subtitle_text = processor.shift(subtitle_text, shift_amount)
 
         while True:
@@ -117,7 +129,7 @@ class Controller:
 
             # Prompt the user for the save location
             elif user_choice == 'save_as':
-                path = self._get_save_path()
+                path = self.__view.get_save_path()
 
                 if not path:
                     continue
@@ -127,5 +139,24 @@ class Controller:
                 break
 
         self._save_file(save_path, shifted_subtitle_text)
+
+    @staticmethod
+    def get_extension_from_path(path: str) -> str:
+        """  Return the extension from the supplied path. """
+        filename, file_extension = os.path.splitext(path)
+
+        return file_extension[1:]
+
+    def _save_file(self, save_path, text) -> None:
+        """ Write the supplied string to the disk. """
+        if not save_path:
+            return
+
+        try:
+            with open(save_path, 'w', encoding='utf-8') as f:
+                f.write(text)
+        except UnicodeEncodeError:
+            with open(save_path, 'w', encoding='latin-1') as f:
+                f.write(text)
 
 

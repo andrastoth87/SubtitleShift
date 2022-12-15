@@ -1,6 +1,6 @@
 from processors.processor_sub import ProcessorSUB
 from processors.processor_general import ProcessorGENERAL
-
+from processors.processor_template import ProcessorTemplate
 
 class Model:
     def __init__(self) -> None:
@@ -30,6 +30,10 @@ class Model:
     def get_subtitle_path(self) -> str:
         """ Gets the path of the subtitle. """
         return self.__subtitle_path
+
+    def get_processor(self, extension: str) -> ProcessorTemplate:
+        """ Returns the processor for the extension. """
+        return self.__supported_extensions.get(extension, None)
 
     def set_subtitle_path(self, path: str) -> None:
         """ Sets the path of the subtitle. """

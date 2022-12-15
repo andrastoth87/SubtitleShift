@@ -20,14 +20,10 @@ class View:
         self.COLOR_LIGHT_GREEN = '#e5ffd5'
         self.COLOR_GREEN = '#ccffaa'
 
-        # The value of the radio button that will determine if we shift the subtitle in a positive or negative direction. 0 = positive, 1 = negative.
-        self.radiobutton_val = tk.IntVar()
-
     def setup(self, controller):
         self.__controller = controller
 
         self._create_gui()
-        self.__controller.check_for_open_orders()
 
     def _create_gui(self):
         self.root = tk.Tk()
@@ -38,7 +34,7 @@ class View:
         self.root.withdraw()
 
         if "main_container":
-            main_container = tk.Frame(self)
+            main_container = tk.Frame(self.root)
             main_container.grid(row=0, column=0, padx=10, pady=10, sticky='nesw')
 
             if "open_container":
@@ -47,7 +43,7 @@ class View:
                 open_container.columnconfigure(0, weight=0)
                 open_container.columnconfigure(1, weight=1)
 
-                self.button_open = tk.Button(open_container, text="Open File", command=self._get_open_path, borderwidth=1, relief=tk.SOLID)
+                self.button_open = tk.Button(open_container, text="Open File", command=self._get_subtitle_path, borderwidth=1, relief=tk.SOLID)
                 self.button_open.grid(row=0, column=0, ipadx=10, sticky='w')
                 self.label_file_path = tk.Label(open_container, text="No file chosen")
                 self.label_file_path.grid(row=0, column=1, sticky='we', padx=(10, 0))
@@ -60,6 +56,10 @@ class View:
                 option_container.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(10, 0))
                 option_container.columnconfigure(0, weight=1)
                 option_container.columnconfigure(1, weight=1)
+
+                # The value of the radio button that will determine if we shift the subtitle in a positive or negative direction. 0 = positive, 1 = negative.
+                self.radiobutton_val = tk.IntVar()
+                self.radiobutton_val.set(1)
 
                 tk.Radiobutton(option_container, text="Add offset", variable=self.radiobutton_val, value=1).grid(row=0, column=0)
                 tk.Radiobutton(option_container, text="Remove offset", variable=self.radiobutton_val, value=-1).grid(row=0, column=1)
@@ -78,7 +78,7 @@ class View:
 
                 tk.Label(entry_container, text="1 second = 1000 milliseconds", font=self.FONT_INFORMATION_ITALIC).grid(row=1, column=0, columnspan=2, sticky='w')
 
-            self.button_sync = tk.Button(main_container, text="Synchronise Subtitle", command=lambda: self.__controller.process_file(self._get_shift_amount, ), borderwidth=1, relief=tk.SOLID)
+            self.button_sync = tk.Button(main_container, text="Synchronise Subtitle", command=lambda: self.__controller.process_file(self._get_shift_amount()), borderwidth=1, relief=tk.SOLID)
             self.button_sync.grid(row=3, column=0, columnspan=2, ipadx=10, ipady=5, pady=(10, 0), sticky='ew')
 
         self._center_widget()
@@ -86,8 +86,8 @@ class View:
         # Show GUI
         self.root.deiconify()
 
-    def _center_widget(self):
-        # Center window
+    def _center_widget(self) -> None:
+        """ Centers the widget. """
         self.root.update()
 
         w = self.root.winfo_width()
@@ -100,6 +100,10 @@ class View:
 
         self.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
 
+    def start_main_loop(self) -> None:
+        """ Starts the main loop of tkinter. """
+        self.root.mainloop()
+
     @staticmethod
     def _validate_input(value_if_allowed: str) -> bool:
         """ Validation for the offset amount entry to only allow positive numbers. """
@@ -111,18 +115,18 @@ class View:
         else:
             return False
 
-    def on_state_initialized(self):
+    def on_state_initialized(self) -> None:
         """ Change the variables associated with this state. """
         self.button_sync.config(state='disabled', bg='grey85')
         self.button_open.config(bg=self.COLOR_YELLOW, activebackground=self.COLOR_LIGHT_YELLOW)
 
-    def on_state_loaded(self):
+    def on_state_loaded(self) -> None:
         """ Change the variables associated with this state. """
         self._fit_text_to_label(self.label_file_path, self.__controller.get_subtitle_path())
         self.button_sync.config(state='normal', bg=self.COLOR_GREEN, activebackground=self.COLOR_LIGHT_GREEN)
         self.button_open.config(bg=self.COLOR_GREEN, activebackground=self.COLOR_LIGHT_GREEN)
 
-    def _get_open_path(self):
+    def _get_subtitle_path(self) -> None:
         """ Get the path of the subtitle file. """
         extensions = self.__controller.get_supported_extensions_str('*.', ' ')
 
@@ -132,27 +136,20 @@ class View:
         )
 
         # Use Tkinter's file dialogue to select a file
-        open_path = tkFileDialog.askopenfilename(title='Open Subtitle...', initialdir='/', filetypes=filetypes)
+        subtitle_path = tkFileDialog.askopenfilename(title='Open Subtitle...', initialdir='/', filetypes=filetypes)
 
         # If there was no file selected or if the file is not supported then return.
-        if not open_path:
+        if not subtitle_path:
             return
 
-        if not self._get_extension_from_path(open_path) in self.__controller.get_supported_extensions_list():
+        if not self.__controller.get_extension_from_path(subtitle_path) in self.__controller.get_supported_extensions_list():
             tkMessagebox.showwarning('Warning', 'Unsupported filetype! Please select a different file!')
 
             return
 
         # The filepath is valid then change the state of the program.
-        self.__controller.set_subtitle_path(open_path)
+        self.__controller.set_subtitle_path(subtitle_path)
         self.__controller.change_state(State.LOADED)
-
-    @staticmethod
-    def _get_extension_from_path(path: str) -> str:
-        """  Return the extension from the supplied path. """
-        filename, file_extension = os.path.splitext(path)
-
-        return file_extension[1:]
 
     def _fit_text_to_label(self, label_widget: tk.Widget, text: str) -> None:
         """
@@ -200,13 +197,29 @@ class View:
 
     @staticmethod
     def show_ask_question_messagebox(tile: str, text: str) -> str:
+        """ Shows the ask question messagebox. """
         return tkMessagebox.askquestion(tile, text, icon='warning')
 
     @staticmethod
     def show_error_messagebox(tile: str, text: str) -> str:
+        """ Shows the error messagebox. """
         return tkMessagebox.showerror(tile, text, icon='warning')
 
+    def get_save_path(self) -> str:
+        """ Opens the Save as dialog and returns the save path. """
+        filetypes = []
+
+        filename, file_extension = os.path.splitext(self.__controller.get_subtitle_path())
+        filetypes.append((f'Subtitle Files *{file_extension}', f'*{file_extension}'))
+        filetypes.append(('All Files *.*', '*.*'))
+
+        try:
+            return tkFileDialog.asksaveasfile(filetypes=filetypes, defaultextension=filetypes).name
+        except AttributeError:
+            return ''
+
     def reset_fields(self) -> None:
+        """ Resets the values to default. """
         self.radiobutton_val.set(1)
         self.entry_offset_amount.delete(0, 'end')
         self.label_file_path.config(text="No file chosen")
