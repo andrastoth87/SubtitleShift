@@ -1,4 +1,3 @@
-# States of this program
 import os
 
 
